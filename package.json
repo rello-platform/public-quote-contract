@@ -1,0 +1,31 @@
+{
+  "name": "@rello-platform/public-quote-contract",
+  "version": "0.1.0",
+  "description": "The public borrower-quote contract: the scenario answers a spoke forwards, the priced response the engine returns, and the ONE forbidden-key vocabulary both sides' W-3 guards assert from.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github:rello-platform/public-quote-contract"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "license": "UNLICENSED"
+}
