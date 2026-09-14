@@ -131,6 +131,21 @@ export const pricedQuoteSchema = z
     /** Present when the engine declined; absent when it priced. */
     routeToHuman: routeToHumanSchema.nullable().optional(),
     snapshotFreshness: z.unknown().nullable().optional(),
+    /**
+     * v0.1.1 (additive, optional) — WHY `par` is null when the engine withheld
+     * it: the curve par exists but its offset-0 rung carries no APR, so no bare
+     * rate ships (PFP #497, "par-apr-unavailable"). Absent on an older engine;
+     * null when par is present.
+     */
+    parOmittedReason: z.string().nullable().optional(),
+    /**
+     * v0.1.1 (additive, optional) — rungs the engine withheld from `points`
+     * because they carry no APR (PFP #496). A consumer that renders a rate
+     * reads this before the number so the absence is a value, not a gap.
+     */
+    withheldRungs: z
+        .array(z.object({ offset: z.number(), aprOmittedReason: z.string() }).passthrough())
+        .optional(),
 })
     .passthrough();
 /**

@@ -121,6 +121,11 @@ export declare const pricedQuoteSchema: z.ZodObject<{
         message: z.ZodString;
     }, z.core.$loose>>>;
     snapshotFreshness: z.ZodOptional<z.ZodNullable<z.ZodUnknown>>;
+    parOmittedReason: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    withheldRungs: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        offset: z.ZodNumber;
+        aprOmittedReason: z.ZodString;
+    }, z.core.$loose>>>;
 }, z.core.$loose>;
 export type PricedQuote = z.infer<typeof pricedQuoteSchema>;
 /**
