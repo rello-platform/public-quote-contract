@@ -1,6 +1,6 @@
 {
   "name": "@rello-platform/public-quote-contract",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The public borrower-quote contract: the scenario answers a spoke forwards, the priced response the engine returns, and the ONE forbidden-key vocabulary both sides' W-3 guards assert from.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,8 @@
   "scripts": {
     "compile": "tsc",
     "prepublishOnly": "npm run compile",
-    "hooks": "git config core.hooksPath .husky || true"
+    "hooks": "git config core.hooksPath .husky || true",
+    "test": "npm run compile && node --test test/walker.test.mjs"
   },
   "dependencies": {
     "zod": "^4.3.5"

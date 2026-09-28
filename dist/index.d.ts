@@ -3,7 +3,8 @@
  *
  * One declaration of the surface a member of the public can fetch: the
  * scenario answers a spoke forwards, the priced response the engine returns,
- * and the forbidden-key vocabulary both sides' W-3 guards assert from.
+ * and the ONE public-payload PII guard both sides assert from (v0.3.0: PII only —
+ * the summed-cost ban was lifted by ruling R-20; see section 3).
  *
  * ── WHY A PACKAGE, AND NOT A COPY ON EACH SIDE ───────────────────────────────
  *
@@ -144,21 +145,46 @@ export declare function safeParsePricedQuote(raw: unknown): {
     ok: false;
     error: string;
 };
-/** Summed cost fields. A borrower-facing quote must not resemble a Loan
- *  Estimate, and a total is the field that makes it resemble one. */
-export declare const FORBIDDEN_SUMMED_COST_KEYS: readonly ["totalClosingCosts", "estimatedCashToClose", "cashToClose", "totalFees", "totalCost", "allInCost", "sumOfCosts"];
-/** Never on a public quote, at any depth. */
+/** The v0.2.0 spellings, kept as the floor: a key on this list is always a finding. */
 export declare const FORBIDDEN_PII_KEYS: readonly ["ssn", "socialSecurityNumber", "income", "annualIncome", "monthlyIncome", "streetAddress", "addressLine1", "dateOfBirth"];
-export declare const FORBIDDEN_RESPONSE_KEYS: readonly ["totalClosingCosts", "estimatedCashToClose", "cashToClose", "totalFees", "totalCost", "allInCost", "sumOfCosts", "ssn", "socialSecurityNumber", "income", "annualIncome", "monthlyIncome", "streetAddress", "addressLine1", "dateOfBirth"];
-/** A summed cost field under another name. Catches what a denylist cannot. */
-export declare const FORBIDDEN_KEY_PATTERN: RegExp;
 /**
- * Every forbidden key in a payload, as dotted paths — RECURSIVE, because a
- * top-level-only check passes while the field sits one level down. Returns []
- * when the payload is clean.
- *
- * ONE implementation, so the two suites cannot drift into checking different
- * things while both report green.
+ * The walker's listed vocabulary. Since v0.3.0 this is PII only (R-23); the
+ * summed-cost keys it once carried are retired. Kept under its old name so a
+ * consumer's import does not break on the upgrade.
  */
-export declare function findForbiddenKeys(value: unknown, trail?: string[]): string[];
+export declare const FORBIDDEN_RESPONSE_KEYS: readonly ["ssn", "socialSecurityNumber", "income", "annualIncome", "monthlyIncome", "streetAddress", "addressLine1", "dateOfBirth"];
+/**
+ * A key or a short label as lowercase SINGULAR words, however it was spelled:
+ * `borrowerGrossIncome`, `borrower_gross_income` and `Borrower Gross Income`
+ * all become `["borrower","gross","income"]`; `ssnLast4` becomes
+ * `["ssn","last","4"]`.
+ */
+export declare function canonicalTokens(raw: string): string[];
+export type PiiCategory = "listed" | "tax-id" | "income" | "birth-date" | "street-address" | "person-name" | "contact";
+export interface ForbiddenKeyFinding {
+    /** Dotted path. A value inside a JSON string is marked `path(json)`; a
+     *  forbidden key or label carried AS DATA is marked `path=<value>`. */
+    path: string;
+    category: PiiCategory;
+}
+/**
+ * ⚖️ PER-SURFACE SCOPE, WITHOUT A REWRITE. A surface whose ruling permits a
+ * field passes it here by canonical form (`"borrower name"`), and only that
+ * surface is affected. Empty by default; no caller in this package sets it.
+ */
+export interface ForbiddenKeyOptions {
+    exemptCanonical?: readonly string[];
+}
+/**
+ * Every PII key in a payload, with its category — RECURSIVE through objects,
+ * arrays and JSON-encoded strings. [] when clean.
+ */
+export declare function findForbiddenKeyFindings(value: unknown, options?: ForbiddenKeyOptions): ForbiddenKeyFinding[];
+/**
+ * Every PII key in a payload, as dotted paths. [] when clean. ONE
+ * implementation, so the suites cannot drift into checking different things.
+ * (The second parameter was a recursion `trail` before v0.3.0; an array there
+ * is still accepted and ignored.)
+ */
+export declare function findForbiddenKeys(value: unknown, options?: ForbiddenKeyOptions | string[]): string[];
 //# sourceMappingURL=index.d.ts.map

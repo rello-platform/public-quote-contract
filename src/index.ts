@@ -3,7 +3,8 @@
  *
  * One declaration of the surface a member of the public can fetch: the
  * scenario answers a spoke forwards, the priced response the engine returns,
- * and the forbidden-key vocabulary both sides' W-3 guards assert from.
+ * and the ONE public-payload PII guard both sides assert from (v0.3.0: PII only —
+ * the summed-cost ban was lifted by ruling R-20; see section 3).
  *
  * ── WHY A PACKAGE, AND NOT A COPY ON EACH SIDE ───────────────────────────────
  *
@@ -187,27 +188,27 @@ export function safeParsePricedQuote(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3 · W-3 — THE FORBIDDEN VOCABULARY, DECLARED ONCE
+// 3 · THE PUBLIC-PAYLOAD PII GUARD, DECLARED ONCE
 //
-// "If the number does not exist in the payload, no one can render it by
-// accident." Both suites assert from THIS list and THIS walker, so the guard
-// cannot fork again — and it cannot fork in the direction it forked last time,
-// with the thinner copy on the public surface.
+// ⚖️ v0.3.0 — RE-SCOPED BY RULING (RATES-KA-RULINGS R-20 / R-21 / R-23, 2026-09-28).
+// This section used to be "W-3": a ban on summed cost fields (`totalClosingCosts`,
+// `cashToClose`, …) on the theory that a total makes a quote resemble a Loan
+// Estimate. Kelly lifted that ban — "The problem is creating a form, not showing
+// the numbers" — and the H-24 boundary now lives where the FORM is (section
+// names verbatim, the lettered subtotals, the two-column ledger), which is a
+// rendering question, not a key question. So the summed-cost vocabulary is
+// RETIRED here, entirely: `FORBIDDEN_SUMMED_COST_KEYS` and
+// `FORBIDDEN_KEY_PATTERN` are deleted rather than left exported, because a
+// retired list that still exports is a list somebody imports.
+//
+// What remains is the walker's real job: a public quote must never carry the
+// borrower's identity or finances. And that is exactly where it was weakest —
+// the 2026-09-28 Stage A audit planted `borrowerIncome`, `grossIncome` and
+// `ssnLast4`, and all three passed, because the guard matched eight exact
+// spellings. It now judges canonical tokens by rule.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Summed cost fields. A borrower-facing quote must not resemble a Loan
- *  Estimate, and a total is the field that makes it resemble one. */
-export const FORBIDDEN_SUMMED_COST_KEYS = [
-  "totalClosingCosts",
-  "estimatedCashToClose",
-  "cashToClose",
-  "totalFees",
-  "totalCost",
-  "allInCost",
-  "sumOfCosts",
-] as const;
-
-/** Never on a public quote, at any depth. */
+/** The v0.2.0 spellings, kept as the floor: a key on this list is always a finding. */
 export const FORBIDDEN_PII_KEYS = [
   "ssn",
   "socialSecurityNumber",
@@ -219,35 +220,154 @@ export const FORBIDDEN_PII_KEYS = [
   "dateOfBirth",
 ] as const;
 
-export const FORBIDDEN_RESPONSE_KEYS = [
-  ...FORBIDDEN_SUMMED_COST_KEYS,
-  ...FORBIDDEN_PII_KEYS,
-] as const;
+/**
+ * The walker's listed vocabulary. Since v0.3.0 this is PII only (R-23); the
+ * summed-cost keys it once carried are retired. Kept under its old name so a
+ * consumer's import does not break on the upgrade.
+ */
+export const FORBIDDEN_RESPONSE_KEYS = FORBIDDEN_PII_KEYS;
 
-/** A summed cost field under another name. Catches what a denylist cannot. */
-export const FORBIDDEN_KEY_PATTERN =
-  /^(total|sum|estimated|all)[A-Z_]?.*(closingcost|cashtoclose|cost|fee)s?$/i;
+const INVISIBLE = /[­​-‏⁠﻿]/g;
 
 /**
- * Every forbidden key in a payload, as dotted paths — RECURSIVE, because a
- * top-level-only check passes while the field sits one level down. Returns []
- * when the payload is clean.
- *
- * ONE implementation, so the two suites cannot drift into checking different
- * things while both report green.
+ * A key or a short label as lowercase SINGULAR words, however it was spelled:
+ * `borrowerGrossIncome`, `borrower_gross_income` and `Borrower Gross Income`
+ * all become `["borrower","gross","income"]`; `ssnLast4` becomes
+ * `["ssn","last","4"]`.
  */
-export function findForbiddenKeys(value: unknown, trail: string[] = []): string[] {
-  if (value === null || typeof value !== "object") return [];
-  const out: string[] = [];
-  if (Array.isArray(value)) {
-    value.forEach((v, i) => out.push(...findForbiddenKeys(v, [...trail, String(i)])));
-    return out;
+export function canonicalTokens(raw: string): string[] {
+  const words = raw
+    .normalize("NFKC")
+    .replace(INVISIBLE, "")
+    .replace(/&/g, " and ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .replace(/([A-Za-z])([0-9])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w !== "");
+  // Singular, so `wages`/`wage` are one word. Never strips a double-s
+  // (`address`, `gross`) or a short token (`ssn`, `dob`).
+  return words.map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w));
+}
+
+const has = (tokens: readonly string[], seq: readonly string[]): boolean => {
+  for (let i = 0; i + seq.length <= tokens.length; i++) {
+    if (seq.every((w, j) => tokens[i + j] === w)) return true;
   }
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    const at = [...trail, k].join(".");
-    if ((FORBIDDEN_RESPONSE_KEYS as readonly string[]).includes(k)) out.push(at);
-    else if (FORBIDDEN_KEY_PATTERN.test(k)) out.push(at);
-    out.push(...findForbiddenKeys(v, [...trail, k]));
-  }
+  return false;
+};
+
+export type PiiCategory = "listed" | "tax-id" | "income" | "birth-date" | "street-address" | "person-name" | "contact";
+
+/** Words that make an address, a name, an email or a phone number a PERSON's. */
+const PERSON_ADDRESS = ["property", "mailing", "home", "borrower", "residence", "current", "subject", "applicant"];
+const PERSON_NAME = ["first", "last", "middle", "full", "legal", "borrower", "applicant", "maiden", "given", "family"];
+/** A business's public contact is not PII: the MLO's phone is on every rate card. */
+const BUSINESS_OWNER = new Set(["lender", "company", "mlo", "agent", "officer", "office", "support", "broker", "branch", "business", "team"]);
+
+/**
+ * The PII a payload can carry under any spelling. `strict` is the subset
+ * judged on string VALUES (a key carried as data, a short label): identity and
+ * finances only, never `email`/`phone`/`name`, which are ordinary words in data.
+ */
+function piiCategory(tokens: readonly string[], strict = false): PiiCategory | null {
+  // `income limit` is an AREA threshold (USDA / HomeReady), a public figure.
+  if (tokens.some((t, i) => (t === "income" && tokens[i + 1] !== "limit") || t === "salary" || t === "wage")) return "income";
+  if (tokens.includes("ssn") || has(tokens, ["social", "security"]) || has(tokens, ["taxpayer", "id"]) || has(tokens, ["tax", "id"])) return "tax-id";
+  if (has(tokens, ["date", "of", "birth"]) || has(tokens, ["birth", "date"]) || tokens.includes("dob") || tokens.includes("birthday")) return "birth-date";
+  if (tokens.includes("street") || has(tokens, ["address", "line"]) || PERSON_ADDRESS.some((w) => has(tokens, [w, "address"]))) return "street-address";
+  if (strict) return null;
+  if (PERSON_NAME.some((w) => has(tokens, [w, "name"])) || has(tokens, ["co", "borrower", "name"])) return "person-name";
+  const contactAt = tokens.findIndex((t) => t === "email" || t === "phone" || t === "mobile" || t === "cell");
+  if (contactAt >= 0 && !tokens.slice(0, contactAt).some((t) => BUSINESS_OWNER.has(t))) return "contact";
+  return null;
+}
+
+function categoryForKey(key: string): PiiCategory | null {
+  if ((FORBIDDEN_PII_KEYS as readonly string[]).includes(key)) return "listed";
+  return piiCategory(canonicalTokens(key));
+}
+
+/** Keys whose string value NAMES a field rather than saying something. */
+const LABEL_KEYS = new Set(["label", "name", "title", "field", "key", "heading", "caption"]);
+
+/**
+ * A string that is really a key (`"ssnLast4"`, judged wherever it sits) or a
+ * short label held under a label key (`{ label: "Gross income" }`). Copy is
+ * neither: "your household size and income" under `whatWeNeed` ASKS for the
+ * figure, it does not carry it (measured on the live three-options payload,
+ * 2026-09-28).
+ */
+function categoryForStringValue(s: string, heldBy: string | undefined): PiiCategory | null {
+  const t = s.trim();
+  if ((FORBIDDEN_PII_KEYS as readonly string[]).includes(t)) return "listed";
+  const tokens = canonicalTokens(t);
+  if (tokens.length === 0 || tokens.length > 6 || /[.!?]\s*$/.test(t)) return null;
+  const identifier = /^[A-Za-z_$][\w$-]*$/.test(t);
+  if (!identifier && !(heldBy !== undefined && LABEL_KEYS.has(canonicalTokens(heldBy).join(" ")))) return null;
+  return piiCategory(tokens, true);
+}
+
+export interface ForbiddenKeyFinding {
+  /** Dotted path. A value inside a JSON string is marked `path(json)`; a
+   *  forbidden key or label carried AS DATA is marked `path=<value>`. */
+  path: string;
+  category: PiiCategory;
+}
+
+/**
+ * ⚖️ PER-SURFACE SCOPE, WITHOUT A REWRITE. A surface whose ruling permits a
+ * field passes it here by canonical form (`"borrower name"`), and only that
+ * surface is affected. Empty by default; no caller in this package sets it.
+ */
+export interface ForbiddenKeyOptions {
+  exemptCanonical?: readonly string[];
+}
+
+/**
+ * Every PII key in a payload, with its category — RECURSIVE through objects,
+ * arrays and JSON-encoded strings. [] when clean.
+ */
+export function findForbiddenKeyFindings(value: unknown, options: ForbiddenKeyOptions = {}): ForbiddenKeyFinding[] {
+  const exempt = new Set((options.exemptCanonical ?? []).map((e) => canonicalTokens(e).join(" ")));
+  const out: ForbiddenKeyFinding[] = [];
+  const walk = (v: unknown, trail: string[]): void => {
+    if (typeof v === "string") {
+      const t = v.trim();
+      if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+        try {
+          walk(JSON.parse(t), [...trail.slice(0, -1), `${trail[trail.length - 1] ?? ""}(json)`]);
+          return;
+        } catch {
+          // Not JSON — judged as a string below. A parse failure is not a finding.
+        }
+      }
+      const category = categoryForStringValue(v, trail[trail.length - 1]);
+      if (category && !exempt.has(canonicalTokens(v).join(" "))) out.push({ path: `${trail.join(".")}=${t}`, category });
+      return;
+    }
+    if (v === null || typeof v !== "object") return;
+    if (Array.isArray(v)) {
+      v.forEach((item, i) => walk(item, [...trail, String(i)]));
+      return;
+    }
+    for (const [k, child] of Object.entries(v as Record<string, unknown>)) {
+      const category = categoryForKey(k);
+      if (category && !exempt.has(canonicalTokens(k).join(" "))) out.push({ path: [...trail, k].join("."), category });
+      walk(child, [...trail, k]);
+    }
+  };
+  walk(value, []);
   return out;
+}
+
+/**
+ * Every PII key in a payload, as dotted paths. [] when clean. ONE
+ * implementation, so the suites cannot drift into checking different things.
+ * (The second parameter was a recursion `trail` before v0.3.0; an array there
+ * is still accepted and ignored.)
+ */
+export function findForbiddenKeys(value: unknown, options: ForbiddenKeyOptions | string[] = {}): string[] {
+  return findForbiddenKeyFindings(value, Array.isArray(options) ? {} : options).map((f) => f.path);
 }
