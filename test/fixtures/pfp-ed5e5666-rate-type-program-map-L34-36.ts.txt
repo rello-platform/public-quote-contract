@@ -1,0 +1,3 @@
+  RATE_FHA_30YR: { family: "FHA", termYears: 30 },
+  RATE_FHA_15YR: { family: "FHA", termYears: 15 },
+  RATE_VA_30YR: { family: "VA", termYears: 30 },

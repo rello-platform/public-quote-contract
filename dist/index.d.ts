@@ -37,13 +37,83 @@ import { z } from "zod";
 export declare const SCENARIO_PURPOSES: readonly ["buy", "refinance"];
 export declare const SCENARIO_OCCUPANCIES: readonly ["PRIMARY", "SECOND_HOME", "INVESTMENT"];
 export declare const SCENARIO_PROPERTY_TYPES: readonly ["CONDO", "MANUFACTURED"];
+/** A program family a credit band is restricted to — the engine's `RATE_TYPE_TO_PROGRAM[rateType].family`. */
+export type CreditBandFamily = "FHA" | "VA";
 /**
  * The credit BANDS the adjusters key on, asked verbatim — "the question is the
  * answer". The engine prices at a band's floor, so no consumer maps a label to
  * a score. `FICO_BELOW_680` is deliberately floorless: it routes to a person
  * rather than inventing a score the borrower may not have.
+ *
+ * v0.4.0 (R-226, Kelly Q8: "absolutely it should quote lower") — MIRRORED
+ * VERBATIM from the engine's `CREDIT_BANDS` (PathfinderPro
+ * `src/lib/rate-sheets/scenario-contract.ts:65–105 @ ed5e5666`): ids, labels,
+ * floors and families. The six bands below 680 are appended after
+ * `FICO_BELOW_680` in the engine's order and carry `families`: the engine
+ * prices them for FHA and VA only, and every other family routes exactly as
+ * `FICO_BELOW_680` does. `families` is the engine's ruling, not a consumer's
+ * gate. `test/credit-bands-mirror.test.mjs` parses the engine's committed lines
+ * and fails on any difference, so a retyped label is red, not a review item.
  */
-export declare const CREDIT_BAND_IDS: readonly ["FICO_760_PLUS", "FICO_740_759", "FICO_720_739", "FICO_700_719", "FICO_680_699", "FICO_BELOW_680"];
+export declare const CREDIT_BANDS: readonly [{
+    readonly id: "FICO_760_PLUS";
+    readonly label: "760 or higher";
+    readonly floor: 760;
+}, {
+    readonly id: "FICO_740_759";
+    readonly label: "740 – 759";
+    readonly floor: 740;
+}, {
+    readonly id: "FICO_720_739";
+    readonly label: "720 – 739";
+    readonly floor: 720;
+}, {
+    readonly id: "FICO_700_719";
+    readonly label: "700 – 719";
+    readonly floor: 700;
+}, {
+    readonly id: "FICO_680_699";
+    readonly label: "680 – 699";
+    readonly floor: 680;
+}, {
+    readonly id: "FICO_BELOW_680";
+    readonly label: "Below 680";
+    readonly floor: null;
+}, {
+    readonly id: "FICO_660_679";
+    readonly label: "660 – 679";
+    readonly floor: 660;
+    readonly families: readonly ["FHA", "VA"];
+}, {
+    readonly id: "FICO_640_659";
+    readonly label: "640 – 659";
+    readonly floor: 640;
+    readonly families: readonly ["FHA", "VA"];
+}, {
+    readonly id: "FICO_620_639";
+    readonly label: "620 – 639";
+    readonly floor: 620;
+    readonly families: readonly ["FHA", "VA"];
+}, {
+    readonly id: "FICO_600_619";
+    readonly label: "600 – 619";
+    readonly floor: 600;
+    readonly families: readonly ["FHA", "VA"];
+}, {
+    readonly id: "FICO_580_599";
+    readonly label: "580 – 599";
+    readonly floor: 580;
+    readonly families: readonly ["FHA", "VA"];
+}, {
+    readonly id: "FICO_550_579";
+    readonly label: "550 – 579";
+    readonly floor: 550;
+    readonly families: readonly ["FHA", "VA"];
+}];
+export type CreditBand = (typeof CREDIT_BANDS)[number];
+export type CreditBandId = CreditBand["id"];
+/** The band ids, in `CREDIT_BANDS` order — one list, so the two cannot disagree. */
+export declare const CREDIT_BAND_IDS: readonly [CreditBandId, ...CreditBandId[]];
 export declare const scenarioAnswersSchema: z.ZodObject<{
     purpose: z.ZodEnum<{
         buy: "buy";
@@ -72,6 +142,12 @@ export declare const scenarioAnswersSchema: z.ZodObject<{
         FICO_700_719: "FICO_700_719";
         FICO_680_699: "FICO_680_699";
         FICO_BELOW_680: "FICO_BELOW_680";
+        FICO_660_679: "FICO_660_679";
+        FICO_640_659: "FICO_640_659";
+        FICO_620_639: "FICO_620_639";
+        FICO_600_619: "FICO_600_619";
+        FICO_580_599: "FICO_580_599";
+        FICO_550_579: "FICO_550_579";
     }>;
     military: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>;

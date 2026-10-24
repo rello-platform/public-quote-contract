@@ -1,0 +1,46 @@
+const FHA_AND_VA: readonly string[] = [
+  RATE_TYPE_TO_PROGRAM.RATE_FHA_30YR.family,
+  RATE_TYPE_TO_PROGRAM.RATE_VA_30YR.family,
+];
+
+export const CREDIT_BANDS = [
+  { id: "FICO_760_PLUS", label: "760 or higher", floor: 760 },
+  { id: "FICO_740_759", label: "740 – 759", floor: 740 },
+  { id: "FICO_720_739", label: "720 – 739", floor: 720 },
+  { id: "FICO_700_719", label: "700 – 719", floor: 700 },
+  { id: "FICO_680_699", label: "680 – 699", floor: 680 },
+  /**
+   * ⚠ The one band with NO floor, and that is not an oversight — it is where
+   * Kelly's own rule runs out. "Price at the band's floor" cannot be applied to
+   * an unbounded band, and inventing one (620? 600?) would quote a number the
+   * borrower's real score may not support: precisely "quoting better than we
+   * can deliver". So this band ROUTES rather than prices — the same designed
+   * outcome shape as jumbo, and the outcome spec §6.4 already names for low
+   * FICO. If a floor is preferred over routing, it is a one-line change here.
+   */
+  { id: "FICO_BELOW_680", label: "Below 680", floor: null },
+  /**
+   * ── BELOW 680, FOR FHA AND VA ONLY (Kelly Q8, R-180: "absolutely it should
+   * quote lower") ─────────────────────────────────────────────────────────────
+   * The bands the government grids PRINT, each priced at its floor exactly like
+   * the six above — so Kelly's floor rule now has a floor to apply. Measured on
+   * the live ClearPath context (built 2026-10-23 02:06Z): CMG, PRMG and
+   * ResiCentral print 580–599 up to 660–679 on FHA/VA, Mega 600–619 up, and
+   * Orion 550–579 up — the lowest printed floor on the panel. Every edge is
+   * shared by every lender that prints it.
+   *
+   * ⛔ `families` IS THE RULING, NOT A GATE. Conventional (and every family not
+   * listed) keeps today's below-680 outcome: the band routes exactly as
+   * FICO_BELOW_680 does, same reason, same words. FICO_BELOW_680 itself is
+   * unchanged and stays floorless for every product.
+   *
+   * Appended AFTER the original six so every existing list, label and error
+   * message keeps its order; a consumer orders its own buttons.
+   */
+  { id: "FICO_660_679", label: "660 – 679", floor: 660, families: FHA_AND_VA },
+  { id: "FICO_640_659", label: "640 – 659", floor: 640, families: FHA_AND_VA },
+  { id: "FICO_620_639", label: "620 – 639", floor: 620, families: FHA_AND_VA },
+  { id: "FICO_600_619", label: "600 – 619", floor: 600, families: FHA_AND_VA },
+  { id: "FICO_580_599", label: "580 – 599", floor: 580, families: FHA_AND_VA },
+  { id: "FICO_550_579", label: "550 – 579", floor: 550, families: FHA_AND_VA },
+] as const;
