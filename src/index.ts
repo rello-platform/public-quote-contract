@@ -49,6 +49,14 @@ import { z } from "zod";
 export const SCENARIO_PURPOSES = ["buy", "refinance"] as const;
 export const SCENARIO_OCCUPANCIES = ["PRIMARY", "SECOND_HOME", "INVESTMENT"] as const;
 export const SCENARIO_PROPERTY_TYPES = ["CONDO", "MANUFACTURED"] as const;
+/**
+ * v0.5.0 (R-274) — the non-QM income-documentation method, in the engine's
+ * CANONICAL spellings only (PathfinderPro `doc-type.ts` DOC_TYPES, read by
+ * `scenario-product-inputs.ts` since #650). The engine also folds case and
+ * separators on its query string; the contract does not — a spoke sends one of
+ * these exactly, so there is one spelling on the wire.
+ */
+export const SCENARIO_DOC_TYPES = ["FULL_DOC", "BANK_STATEMENT", "P_AND_L", "ASSET_DEPLETION", "DSCR"] as const;
 
 /** A program family a credit band is restricted to — the engine's `RATE_TYPE_TO_PROGRAM[rateType].family`. */
 export type CreditBandFamily = "FHA" | "VA";
@@ -111,6 +119,18 @@ export const scenarioAnswersSchema = z.object({
   creditBand: z.enum(CREDIT_BAND_IDS),
   /** Routes to a person; never a pricing dimension. */
   military: z.boolean().optional(),
+  // ── v0.5.0 (R-274) — the non-QM and DSCR answers (PathfinderPro #650). All
+  // additive and optional: a spoke that never asks sends none, and the parse is
+  // v0.4.0's. ABSENT IS NOT ZERO. The engine leaves an unanswered figure
+  // unknown and says so; a `0` is the borrower's answer (no HOA dues, say).
+  /** How the borrower documents income: bank statement, 1099, asset depletion. */
+  docType: z.enum(SCENARIO_DOC_TYPES).nullable().optional(),
+  monthsSelfEmployed: z.number().finite().nonnegative().nullable().optional(),
+  avgMonthlyDeposits: z.number().finite().nonnegative().nullable().optional(),
+  /** DSCR — the property's monthly rent, USD. The engine computes the ratio at pricing. */
+  grossMonthlyRent: z.number().finite().nonnegative().nullable().optional(),
+  /** DSCR — monthly association dues, USD; `0` = none. Absent leaves the ratio unknown. */
+  monthlyHoaDues: z.number().finite().nonnegative().nullable().optional(),
 });
 export type ScenarioAnswers = z.infer<typeof scenarioAnswersSchema>;
 
