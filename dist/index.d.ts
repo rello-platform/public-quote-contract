@@ -37,6 +37,14 @@ import { z } from "zod";
 export declare const SCENARIO_PURPOSES: readonly ["buy", "refinance"];
 export declare const SCENARIO_OCCUPANCIES: readonly ["PRIMARY", "SECOND_HOME", "INVESTMENT"];
 export declare const SCENARIO_PROPERTY_TYPES: readonly ["CONDO", "MANUFACTURED"];
+/**
+ * v0.5.0 (R-274) — the non-QM income-documentation method, in the engine's
+ * CANONICAL spellings only (PathfinderPro `doc-type.ts` DOC_TYPES, read by
+ * `scenario-product-inputs.ts` since #650). The engine also folds case and
+ * separators on its query string; the contract does not — a spoke sends one of
+ * these exactly, so there is one spelling on the wire.
+ */
+export declare const SCENARIO_DOC_TYPES: readonly ["FULL_DOC", "BANK_STATEMENT", "P_AND_L", "ASSET_DEPLETION", "DSCR"];
 /** A program family a credit band is restricted to — the engine's `RATE_TYPE_TO_PROGRAM[rateType].family`. */
 export type CreditBandFamily = "FHA" | "VA";
 /**
@@ -150,6 +158,17 @@ export declare const scenarioAnswersSchema: z.ZodObject<{
         FICO_550_579: "FICO_550_579";
     }>;
     military: z.ZodOptional<z.ZodBoolean>;
+    docType: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        FULL_DOC: "FULL_DOC";
+        BANK_STATEMENT: "BANK_STATEMENT";
+        P_AND_L: "P_AND_L";
+        ASSET_DEPLETION: "ASSET_DEPLETION";
+        DSCR: "DSCR";
+    }>>>;
+    monthsSelfEmployed: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    avgMonthlyDeposits: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    grossMonthlyRent: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    monthlyHoaDues: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
 export type ScenarioAnswers = z.infer<typeof scenarioAnswersSchema>;
 /** Every key a spoke may put on the wire — the allowlist's own source. */
