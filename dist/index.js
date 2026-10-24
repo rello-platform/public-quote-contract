@@ -51,15 +51,33 @@ export const SCENARIO_PROPERTY_TYPES = ["CONDO", "MANUFACTURED"];
  * answer". The engine prices at a band's floor, so no consumer maps a label to
  * a score. `FICO_BELOW_680` is deliberately floorless: it routes to a person
  * rather than inventing a score the borrower may not have.
+ *
+ * v0.4.0 (R-226, Kelly Q8: "absolutely it should quote lower") — MIRRORED
+ * VERBATIM from the engine's `CREDIT_BANDS` (PathfinderPro
+ * `src/lib/rate-sheets/scenario-contract.ts:65–105 @ ed5e5666`): ids, labels,
+ * floors and families. The six bands below 680 are appended after
+ * `FICO_BELOW_680` in the engine's order and carry `families`: the engine
+ * prices them for FHA and VA only, and every other family routes exactly as
+ * `FICO_BELOW_680` does. `families` is the engine's ruling, not a consumer's
+ * gate. `test/credit-bands-mirror.test.mjs` parses the engine's committed lines
+ * and fails on any difference, so a retyped label is red, not a review item.
  */
-export const CREDIT_BAND_IDS = [
-    "FICO_760_PLUS",
-    "FICO_740_759",
-    "FICO_720_739",
-    "FICO_700_719",
-    "FICO_680_699",
-    "FICO_BELOW_680",
+export const CREDIT_BANDS = [
+    { id: "FICO_760_PLUS", label: "760 or higher", floor: 760 },
+    { id: "FICO_740_759", label: "740 – 759", floor: 740 },
+    { id: "FICO_720_739", label: "720 – 739", floor: 720 },
+    { id: "FICO_700_719", label: "700 – 719", floor: 700 },
+    { id: "FICO_680_699", label: "680 – 699", floor: 680 },
+    { id: "FICO_BELOW_680", label: "Below 680", floor: null },
+    { id: "FICO_660_679", label: "660 – 679", floor: 660, families: ["FHA", "VA"] },
+    { id: "FICO_640_659", label: "640 – 659", floor: 640, families: ["FHA", "VA"] },
+    { id: "FICO_620_639", label: "620 – 639", floor: 620, families: ["FHA", "VA"] },
+    { id: "FICO_600_619", label: "600 – 619", floor: 600, families: ["FHA", "VA"] },
+    { id: "FICO_580_599", label: "580 – 599", floor: 580, families: ["FHA", "VA"] },
+    { id: "FICO_550_579", label: "550 – 579", floor: 550, families: ["FHA", "VA"] },
 ];
+/** The band ids, in `CREDIT_BANDS` order — one list, so the two cannot disagree. */
+export const CREDIT_BAND_IDS = CREDIT_BANDS.map((b) => b.id);
 export const scenarioAnswersSchema = z.object({
     purpose: z.enum(SCENARIO_PURPOSES),
     price: z.number().finite().nullable().optional(),
